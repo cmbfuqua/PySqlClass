@@ -1,1 +1,12 @@
-SELECT category, SUM(amount) as total_spent FROM transactions GROUP BY category HAVING SUM(amount) > 500;
+-- Aggregations and Grouping Assignment
+--
+-- We have a table `student_grades` with columns: `student_id`, `course_name`, `grade` (integer 0-100), and `semester`.
+-- 
+-- Your task:
+-- 1. Create a view named `student_averages` that calculates the average grade for each student across all their courses. 
+--    The view should have columns: `student_id` and `average_grade`.
+-- 2. Create a view named `course_stats` that calculates the minimum, maximum, and average grade for each course.
+--    The view should have columns: `course_name`, `min_grade`, `max_grade`, and `avg_grade`.
+-- 
+-- Write your SQL below:
+

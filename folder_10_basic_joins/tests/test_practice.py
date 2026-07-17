@@ -1,28 +1,61 @@
 import sqlite3
 import os
 
-def get_db():
-    db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'finance.db')
-    if not os.path.exists(db_path):
-        conn = sqlite3.connect(':memory:')
-        # Note: in a real environment we'd run setup_database.py here for an in-memory copy
-    else:
-        # For sandboxing, we copy to memory
-        source_conn = sqlite3.connect(db_path)
-        conn = sqlite3.connect(':memory:')
-        source_conn.backup(conn)
-        source_conn.close()
-    return conn
+def test_practice_sql():
+    # Set up in-memory database
+    conn = sqlite3.connect(':memory:')
+    cursor = conn.cursor()
 
-def test_practice():
-    conn = get_db()
+    # Create dummy tables
+    cursor.execute('''
+        CREATE TABLE departments (
+            id INTEGER PRIMARY KEY,
+            name TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE employees (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            department_id INTEGER
+        )
+    ''')
+
+    # Insert dummy data
+    cursor.execute("INSERT INTO departments (id, name) VALUES (1, 'Engineering'), (2, 'Sales')")
+    cursor.execute("INSERT INTO employees (id, name, department_id) VALUES (1, 'Alice', 1), (2, 'Bob', 2), (3, 'Charlie', NULL)")
+
+    # Read and execute practice.sql
     sql_path = os.path.join(os.path.dirname(__file__), '..', 'practice.sql')
     with open(sql_path, 'r') as f:
-        sql = f.read()
+        sql_script = f.read()
+    
+    # We may need to execute statements one by one or ignore failures if student code is incomplete.
+    # Let's execute the script, catching potential syntax errors if incomplete, but the test should assert on the final data.
     try:
-        conn.executescript(sql)
-    except sqlite3.Error as e:
-        # Some assignments purposefully cause errors or just run queries
-        pass
-    assert True
+        cursor.executescript(sql_script)
+    except sqlite3.OperationalError:
+        pass # Ignore errors in case the script is incomplete, but assert will fail below
+
+    # Check Exercise 1 (practice_inner_join)
+    try:
+        cursor.execute("SELECT * FROM practice_inner_join ORDER BY name")
+        inner_results = cursor.fetchall()
+        assert len(inner_results) == 2, "INNER JOIN should return 2 rows"
+        assert inner_results[0] == ('Alice', 'Engineering')
+        assert inner_results[1] == ('Bob', 'Sales')
+    except sqlite3.OperationalError as e:
+        assert False, f"Failed to query practice_inner_join view: {e}"
+
+    # Check Exercise 2 (practice_left_join)
+    try:
+        cursor.execute("SELECT * FROM practice_left_join ORDER BY name")
+        left_results = cursor.fetchall()
+        assert len(left_results) == 3, "LEFT JOIN should return 3 rows"
+        assert left_results[0] == ('Alice', 'Engineering')
+        assert left_results[1] == ('Bob', 'Sales')
+        assert left_results[2] == ('Charlie', None)
+    except sqlite3.OperationalError as e:
+        assert False, f"Failed to query practice_left_join view: {e}"
+
     conn.close()

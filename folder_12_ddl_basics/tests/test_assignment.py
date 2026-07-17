@@ -1,28 +1,55 @@
 import sqlite3
 import os
+import pytest
 
-def get_db():
-    db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'finance.db')
-    if not os.path.exists(db_path):
-        conn = sqlite3.connect(':memory:')
-        # Note: in a real environment we'd run setup_database.py here for an in-memory copy
-    else:
-        # For sandboxing, we copy to memory
-        source_conn = sqlite3.connect(db_path)
-        conn = sqlite3.connect(':memory:')
-        source_conn.backup(conn)
-        source_conn.close()
-    return conn
-
-def test_assignment():
-    conn = get_db()
-    sql_path = os.path.join(os.path.dirname(__file__), '..', 'assignment.sql')
-    with open(sql_path, 'r') as f:
-        sql = f.read()
+def test_assignment_sql():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    sql_file = os.path.join(current_dir, '..', 'assignment.sql')
+    
+    with open(sql_file, 'r') as f:
+        sql_script = f.read()
+        
+    conn = sqlite3.connect(':memory:')
+    cursor = conn.cursor()
+    
+    statements = sql_script.split(';')
+    
+    books_created = False
+    books_genre_added = False
+    members_created = False
+    
     try:
-        conn.executescript(sql)
+        for stmt in statements:
+            stmt = stmt.strip()
+            if not stmt:
+                continue
+            cursor.execute(stmt)
+            
+            if 'CREATE TABLE books' in stmt.upper() or 'CREATE TABLE "books"' in stmt.upper():
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='books'")
+                if cursor.fetchone():
+                    books_created = True
+                    
+            if 'CREATE TABLE members' in stmt.upper() or 'CREATE TABLE "members"' in stmt.upper():
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='members'")
+                if cursor.fetchone():
+                    members_created = True
+                    
+            if 'ALTER TABLE books' in stmt.upper() and 'genre' in stmt.lower():
+                cursor.execute("PRAGMA table_info(books)")
+                columns = [info[1] for info in cursor.fetchall()]
+                if 'genre' in columns:
+                    books_genre_added = True
+
+        assert books_created, "Table 'books' was not created."
+        assert members_created, "Table 'members' was not created."
+        assert books_genre_added, "Column 'genre' was not added to 'books'."
+        
+        # Verify members was dropped
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='members'")
+        assert cursor.fetchone() is None, "Table 'members' should have been dropped."
+            
     except sqlite3.Error as e:
-        # Some assignments purposefully cause errors or just run queries
-        pass
-    assert True
-    conn.close()
+        pytest.fail(f"SQL execution failed: {e}")
+    finally:
+        conn.close()

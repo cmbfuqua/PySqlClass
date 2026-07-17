@@ -1,4 +1,8 @@
-import practice
+import pytest
+from practice import greeting, calculate_area
 
-def test_practice_runs():
-    assert True # Placeholder test asserting practice runs
+def test_greeting():
+    assert greeting() == "Hello, World!"
+
+def test_calculate_area():
+    assert calculate_area() == 50

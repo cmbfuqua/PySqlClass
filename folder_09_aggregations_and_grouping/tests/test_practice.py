@@ -1,28 +1,57 @@
 import sqlite3
 import os
-
-def get_db():
-    db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'finance.db')
-    if not os.path.exists(db_path):
-        conn = sqlite3.connect(':memory:')
-        # Note: in a real environment we'd run setup_database.py here for an in-memory copy
-    else:
-        # For sandboxing, we copy to memory
-        source_conn = sqlite3.connect(db_path)
-        conn = sqlite3.connect(':memory:')
-        source_conn.backup(conn)
-        source_conn.close()
-    return conn
+import pytest
 
 def test_practice():
-    conn = get_db()
-    sql_path = os.path.join(os.path.dirname(__file__), '..', 'practice.sql')
-    with open(sql_path, 'r') as f:
-        sql = f.read()
+    # Setup in-memory DB
+    conn = sqlite3.connect(':memory:')
+    cursor = conn.cursor()
+    
+    # Create tables and insert dummy data
+    cursor.execute("""
+        CREATE TABLE sales (
+            id INTEGER PRIMARY KEY,
+            product_category TEXT,
+            revenue REAL,
+            region TEXT
+        )
+    """)
+    cursor.executemany("""
+        INSERT INTO sales (product_category, revenue, region) VALUES (?, ?, ?)
+    """, [
+        ('Electronics', 100.0, 'North'),
+        ('Electronics', 150.0, 'North'),
+        ('Clothing', 50.0, 'South'),
+        ('Clothing', 75.0, 'North'),
+        ('Electronics', 200.0, 'South')
+    ])
+    
+    # Read the practice file
+    practice_file = os.path.join(os.path.dirname(__file__), '..', 'practice.sql')
+    with open(practice_file, 'r') as f:
+        sql_script = f.read()
+        
     try:
-        conn.executescript(sql)
-    except sqlite3.Error as e:
-        # Some assignments purposefully cause errors or just run queries
-        pass
-    assert True
-    conn.close()
+        cursor.executescript(sql_script)
+    except sqlite3.OperationalError:
+        pytest.fail("SQL script failed to execute. Did you fill in all the blanks?")
+        
+    # Check category_revenue view
+    try:
+        cursor.execute("SELECT product_category, total_revenue FROM category_revenue ORDER BY product_category")
+        results = cursor.fetchall()
+        assert results == [('Clothing', 125.0), ('Electronics', 450.0)], "category_revenue results are incorrect."
+    except sqlite3.OperationalError:
+        pytest.fail("View category_revenue does not exist or has incorrect columns.")
+
+    # Check region_stats view
+    try:
+        cursor.execute("SELECT region, avg_revenue, min_revenue, max_revenue FROM region_stats ORDER BY region")
+        results = cursor.fetchall()
+        expected = [
+            ('North', 108.33333333333333, 75.0, 150.0),
+            ('South', 125.0, 50.0, 200.0)
+        ]
+        assert results == expected, "region_stats results are incorrect."
+    except sqlite3.OperationalError:
+        pytest.fail("View region_stats does not exist or has incorrect columns.")
