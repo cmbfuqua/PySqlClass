@@ -1,0 +1,1 @@
+CREATE TABLE preferences (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, theme TEXT DEFAULT 'light');
