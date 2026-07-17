@@ -21,7 +21,7 @@ def main():
             test_path = os.path.join(tests_dir, test_file)
             if os.path.exists(test_path):
                 total_tasks += 1
-                result = subprocess.run(["pytest", test_path, "-q", "--disable-warnings"], capture_output=True, text=True)
+                result = subprocess.run([sys.executable, "-m", "pytest", test_path, "-q", "--disable-warnings"], capture_output=True, text=True)
                 if result.returncode == 0:
                     print(f"  [x] {test_file} PASSED")
                     passed_tasks += 1
